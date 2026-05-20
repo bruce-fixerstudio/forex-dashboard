@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FX 外匯資訊網站 | 即時匯率與投資工具</title>
+    <meta name="description" content="提供即時外匯匯率、外匯新聞、換匯計算器與投資試算工具，協助使用者快速掌握市場資訊。">
+    <!-- Google 字型：Noto Sans TC 與 Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 圖表套件 Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 圖示套件 Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- 自訂樣式 -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <!-- 頂部即時行情跑馬燈 -->
+    <div class="ticker-wrap" id="top-ticker">
+        <div class="ticker-content" id="ticker-content">
+            <!-- 由 JavaScript 動態產生 -->
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- 側邊導覽 -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i data-lucide="activity"></i>
+                <span>FX 外匯資訊站</span>
+            </div>
+            <nav class="nav-menu">
+                <button class="nav-btn active" data-target="home">
+                    <i data-lucide="layout-dashboard"></i> 首頁
+                </button>
+                <button class="nav-btn" data-target="market">
+                    <i data-lucide="bar-chart-2"></i> 市場行情
+                </button>
+                <button class="nav-btn" data-target="tools">
+                    <i data-lucide="calculator"></i> 換匯工具
+                </button>
+                <button class="nav-btn" data-target="about">
+                    <i data-lucide="info"></i> 關於本站
+                </button>
+            </nav>
+        </aside>
+
+        <!-- 主要內容區 -->
+        <main class="main-content">
+            <!-- 頁首 -->
+            <header class="top-header">
+                <h1 id="page-title">總覽</h1>
+                <div class="header-actions">
+                    <div class="time-display" id="clock">--:--:--</div>
+                </div>
+            </header>
+
+            <!-- 內容區塊 -->
+            <div class="sections-container">
+
+                <!-- 首頁區塊 -->
+                <section id="home" class="view-section active">
+                    <div class="dashboard-grid">
+                        <div class="rates-board card">
+                            <div class="card-header">
+                                <h2>熱門匯率</h2>
+                                <span class="badge">即時資料</span>
+                            </div>
+                            <div class="rates-grid" id="popular-rates">
+                                <!-- 由 JavaScript 動態產生 -->
+                            </div>
+                        </div>
+                        <div class="side-panel">
+                            <div class="quick-convert card">
+                                <h2>快速換算</h2>
+                                <div class="convert-form">
+                                    <input type="number" id="qc-amount" value="1000" placeholder="金額">
+                                    <div class="currency-selectors">
+                                        <select id="qc-from">
+                                            <option value="USD">USD</option>
+                                            <option value="EUR">EUR</option>
+                                            <option value="TWD">TWD</option>
+                                            <option value="JPY">JPY</option>
+                                            <option value="GBP">GBP</option>
+                                            <option value="AUD">AUD</option>
+                                        </select>
+                                        <button id="swap-btn" class="icon-btn" aria-label="交換幣別">
+                                            <i data-lucide="arrow-right-left"></i>
+                                        </button>
+                                        <select id="qc-to">
+                                            <option value="USD">USD</option>
+                                            <option value="EUR">EUR</option>
+                                            <option value="TWD" selected>TWD</option>
+                                            <option value="JPY">JPY</option>
+                                            <option value="GBP">GBP</option>
+                                            <option value="AUD">AUD</option>
+                                        </select>
+                                    </div>
+                                    <div class="convert-result">
+                                        <span id="qc-result">32,150.00</span>
+                                        <span class="result-currency">TWD</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="news-widget card">
+                                <h2>最新外匯新聞</h2>
+                                <div class="news-list" id="latest-news">
+                                    <!-- 由 JavaScript 動態產生 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 市場行情區塊 -->
+                <section id="market" class="view-section">
+                    <div class="market-container">
+                        <div class="market-table-card card">
+                            <div class="card-header">
+                                <h2>全球貨幣對</h2>
+                                <div class="table-actions">
+                                    <input type="text" id="market-search" placeholder="搜尋貨幣對...">
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>貨幣對</th>
+                                            <th>買入價</th>
+                                            <th>賣出價</th>
+                                            <th>24 小時變動</th>
+                                            <th>趨勢</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="market-table-body">
+                                        <!-- 由 JavaScript 動態產生 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="chart-modal" id="chart-modal">
+                            <div class="chart-header">
+                                <h3 id="chart-title">USD/TWD 匯率走勢</h3>
+                                <button id="close-chart" aria-label="關閉圖表">
+                                    <i data-lucide="x"></i>
+                                </button>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="trendChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 換匯工具區塊 -->
+                <section id="tools" class="view-section">
+                    <div class="tools-grid">
+                        <div class="tool-card card">
+                            <h2>多幣別換算器</h2>
+                            <p class="text-muted">輸入基準金額，快速換算常用貨幣。</p>
+                            <div class="tool-body">
+                                <div class="input-group">
+                                    <label>基準金額</label>
+                                    <div class="input-with-select">
+                                        <input type="number" id="multi-amount" value="1000">
+                                        <select id="multi-base">
+                                            <option value="USD">USD</option>
+                                            <option value="TWD">TWD</option>
+                                            <option value="EUR">EUR</option>
+                                            <option value="JPY">JPY</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="multi-results" id="multi-results">
+                                    <!-- 由 JavaScript 動態產生 -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tool-card card">
+                            <h2>定存複利計算器</h2>
+                            <p class="text-muted">估算外幣或台幣定存到期金額。</p>
+                            <div class="tool-body">
+                                <div class="input-group">
+                                    <label>本金</label>
+                                    <input type="number" id="td-principal" value="10000">
+                                </div>
+                                <div class="input-group">
+                                    <label>年利率 (%)</label>
+                                    <input type="number" id="td-rate" value="4.5" step="0.1">
+                                </div>
+                                <div class="input-group">
+                                    <label>期間（月）</label>
+                                    <input type="number" id="td-term" value="12">
+                                </div>
+                                <button id="calc-td-btn" class="primary-btn">計算</button>
+                                <div class="calc-result-box mt-4">
+                                    <span>預估到期金額</span>
+                                    <h3 id="td-result">0.00</h3>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tool-card card">
+                            <h2>平均買入成本計算器</h2>
+                            <p class="text-muted">計算多筆換匯交易的平均買入匯率。</p>
+                            <div class="tool-body">
+                                <div id="batch-inputs">
+                                    <div class="batch-row">
+                                        <input type="number" class="batch-rate" placeholder="匯率" value="31.5">
+                                        <input type="number" class="batch-amount" placeholder="金額" value="1000">
+                                    </div>
+                                    <div class="batch-row">
+                                        <input type="number" class="batch-rate" placeholder="匯率" value="32.0">
+                                        <input type="number" class="batch-amount" placeholder="金額" value="2000">
+                                    </div>
+                                </div>
+                                <button id="add-batch-btn" class="text-btn mt-2">+ 新增一筆</button>
+                                <button id="calc-avg-btn" class="primary-btn mt-4">計算平均成本</button>
+                                <div class="calc-result-box mt-4">
+                                    <span>平均匯率</span>
+                                    <h3 id="avg-result">0.00</h3>
+                                    <span class="text-muted mt-1" id="total-amount-result">總金額：0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 關於本站區塊 -->
+                <section id="about" class="view-section">
+                    <div class="about-card card">
+                        <div class="about-icon">
+                            <i data-lucide="info"></i>
+                        </div>
+                        <h2>關於 FX 外匯資訊站</h2>
+                        <p>本網站整合常用外匯匯率、即時市場資訊與換匯試算工具，方便使用者快速比較主要貨幣對、估算換匯金額，並掌握基本市場動態。</p>
+
+                        <div class="disclaimer-box">
+                            <h3><i data-lucide="alert-triangle"></i> 風險提醒</h3>
+                            <p>本網站提供的匯率與新聞僅供資訊參考，不構成任何投資建議。實際交易價格可能因銀行、券商、資料來源與市場波動而有所不同，請在交易前再次確認官方報價。</p>
+                        </div>
+
+                        <div class="sources-box">
+                            <h3>資料來源</h3>
+                            <p>匯率資料以公開 API 與備援資料交叉參考，新聞內容來自第三方金融資訊服務。若 API 無法連線，系統會改用內建示範資料維持基本功能。</p>
+                        </div>
+
+                        <div class="contact-box mt-4">
+                            <h3><i data-lucide="mail"></i> 聯絡我</h3>
+                            <p>如果您對這個網站有任何建議、功能回饋，或是合作提案，歡迎隨時與我聯繫：</p>
+                            <ul class="contact-list">
+                                <li><strong>Email:</strong> <a href="mailto:brucefixerstudio@gmail.com">brucefixerstudio@gmail.com</a></li>
+                                <li><strong>GitHub:</strong> <a href="https://github.com/bruce-fixerstudio" target="_blank">@bruce-fixerstudio</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- 應用程式邏輯 -->
+    <script src="js/app.js"></script>
+    <script>
+        // 初始化 Lucide 圖示
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    </script>
+</body>
+
+</html>
