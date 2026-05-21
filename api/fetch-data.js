@@ -16,7 +16,7 @@ module.exports = async (req, res) => {
   await redis.connect();
 
   // 安全檢查：驗證暗號 (判斷是否為後端排程觸發的更新請求)
-  const isAuthorized = (cron === 'true' && secret === 'mySecret123') || 
+  const isAuthorized = (cron === 'true' && secret === process.env.CRON_SECRET) || 
                        (authHeader && authHeader === `Bearer ${process.env.CRON_SECRET}`);
 
   if (isAuthorized) {
@@ -60,6 +60,7 @@ module.exports = async (req, res) => {
         finnhubRates = resFinnhub.value.quote;
       }
 
+      let isFallback = false;
       // 2. 交叉驗證與數據對齊
       if (Object.keys(primaryRates).length > 0) {
         for (const [currency, primaryRate] of Object.entries(primaryRates)) {
@@ -87,6 +88,7 @@ module.exports = async (req, res) => {
         }
       } else {
         liveRates = { ...fallbackRates };
+        isFallback = true;
       }
 
       // 新聞處理
@@ -109,7 +111,8 @@ module.exports = async (req, res) => {
       const marketOutput = {
         rates: liveRates,
         news: finalNews,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        isFallback: isFallback
       };
 
       // 3. 寫入快取，保存 15 分鐘 (900秒)
@@ -136,7 +139,8 @@ module.exports = async (req, res) => {
         return res.status(200).json({ 
             success: true, 
             liveRates: marketData.rates, 
-            news: marketData.news 
+            news: marketData.news,
+            isFallback: marketData.isFallback || false
         });
       } else {
         return res.status(404).json({ success: false, error: "快取中尚未有數據，請稍後再試。" });

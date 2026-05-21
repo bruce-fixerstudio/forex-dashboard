@@ -2,6 +2,7 @@
 let liveRates = {};
 let currencies = [];
 let mockNews = [];
+let isDataFallback = false;
 
 // API 無法連線時使用的備援匯率資料。
 const fallbackRates = {
@@ -51,6 +52,21 @@ async function fetchBackendData() {
         const data = await res.json();
 
         if (data.success) {
+            isDataFallback = data.isFallback || false;
+            // 更新即時資料標籤
+            const badge = document.getElementById("data-status-badge");
+            if (badge) {
+                if (isDataFallback) {
+                    badge.innerText = "示範資料";
+                    badge.style.backgroundColor = "rgba(255, 152, 0, 0.2)";
+                    badge.style.color = "#FF9800";
+                } else {
+                    badge.innerText = "即時資料";
+                    badge.style.backgroundColor = "rgba(0, 230, 118, 0.2)";
+                    badge.style.color = "#00E676";
+                }
+            }
+
             // 處理匯率
             if (data.liveRates && Object.keys(data.liveRates).length > 0) {
                 liveRates = data.liveRates;
@@ -66,9 +82,11 @@ async function fetchBackendData() {
                 }
             }
         } else {
+            isDataFallback = true;
             console.warn("後端 API 回傳失敗，使用備援資料。");
         }
     } catch (error) {
+        isDataFallback = true;
         console.error("無法連線至後端 API，已改用備援資料：", error);
     }
 
@@ -264,7 +282,13 @@ function initChartModal() {
 
 function openChart(pair) {
     const modal = document.getElementById("chart-modal");
-    document.getElementById("chart-title").innerText = `${pair} 匯率走勢`;
+    
+    // 如果是備援資料，加上示範走勢標籤
+    const chartTitle = isDataFallback 
+        ? `${pair} 匯率走勢 <span style="font-size: 0.8rem; color: #FF9800; margin-left: 10px;">(示範走勢，不代表真實歷史資料)</span>`
+        : `${pair} 匯率走勢`;
+        
+    document.getElementById("chart-title").innerHTML = chartTitle;
     modal.classList.add("active");
 
     const ctx = document.getElementById("trendChart").getContext("2d");

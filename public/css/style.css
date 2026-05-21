@@ -743,7 +743,7 @@ input:focus, select:focus {
 }
 
 .contact-list a {
-    color: var(--text-color);
+    color: var(--text-primary);
     text-decoration: underline;
     text-decoration-color: rgba(255, 255, 255, 0.2);
     text-underline-offset: 4px;
