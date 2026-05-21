@@ -1,93 +1,114 @@
-export default async function handler(req, res) {
-    // 從環境變數讀取 API Keys (需要在 Vercel 儀表板設定)
-    const EXCHANGE_RATE_API_KEY = process.env.EXCHANGE_RATE_API_KEY;
-    const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
+// 🚀 修正：改用 require 語法，防止 Vercel 執行環境因為 import 語法崩潰
+const { kv } = require('@vercel/kv');
 
-    if (!EXCHANGE_RATE_API_KEY || !FINNHUB_API_KEY) {
-        return res.status(500).json({ error: "環境變數未設定 API Keys" });
-    }
+module.exports = async (req, res) => {
+  // 🚀 修正：在 Node.js 中，query 參數與 headers 的標準安全抓取方式
+  const secret = req.query ? req.query.secret : null;
+  const cron = req.query ? req.query.cron : null;
+  const authHeader = req.headers ? req.headers['authorization'] : null;
 
+  // 安全檢查：驗證暗號
+  if (
+    (cron === 'true' && secret === 'mySecret123') || 
+    (authHeader && authHeader === `Bearer ${process.env.CRON_SECRET}`)
+  ) {
     try {
-        console.log("後端啟動：正在並行取得所有外部 API 資料...");
-        
-        // 並行取得匯率與新聞
-        const [resExchange, resFinnhub, resFrankfurter, resNews] = await Promise.allSettled([
-            fetch(`https://v6.exchangerate-api.com/v6/${EXCHANGE_RATE_API_KEY}/latest/USD`).then(r => r.json()),
-            fetch(`https://finnhub.io/api/v1/forex/rates?base=USD&token=${FINNHUB_API_KEY}`).then(r => r.json()),
-            fetch("https://api.frankfurter.app/latest?from=USD").then(r => r.json()),
-            fetch(`https://finnhub.io/api/v1/news?category=general&token=${FINNHUB_API_KEY}`).then(r => r.json())
-        ]);
+      console.log("暗號正確，開始執行後端數據更新與比對...");
 
-        // --- 匯率交叉驗證邏輯 ---
-        let primaryRates = {};
-        let benchmarkRates = {};
+      // 備援匯率資料
+      const fallbackRates = {
+        USD: 1, TWD: 32.2, EUR: 0.92, JPY: 155, GBP: 0.79, AUD: 1.52, CAD: 1.37, CHF: 0.91
+      };
 
-        if (resExchange.status === "fulfilled" && resExchange.value.result === "success") {
-            primaryRates = resExchange.value.conversion_rates;
-        }
+      // 1. 呼叫外部 API
+      const [resExchange, resFinnhub, resFrankfurter] = await Promise.allSettled([
+        fetch(`https://v6.exchangerate-api.com/v6/${process.env.EXCHANGE_KEY}/latest/USD`).then(r => r.json()),
+        fetch(`https://finnhub.io/api/v1/news?category=general&token=${process.env.FINNHUB_KEY}`).then(r => r.json()),
+        fetch("https://api.frankfurter.app/latest?from=USD").then(r => r.json())
+      ]);
 
-        if (resFrankfurter.status === "fulfilled" && resFrankfurter.value.rates) {
-            benchmarkRates = resFrankfurter.value.rates;
-            benchmarkRates.USD = 1;
-        }
+      let primaryRates = {};
+      let benchmarkRates = {};
+      let liveRates = { USD: 1 };
 
-        let finnhubRates = null;
-        if (resFinnhub.status === "fulfilled" && !resFinnhub.value.error && resFinnhub.value.quote) {
-            finnhubRates = resFinnhub.value.quote;
-        }
+      if (resExchange.status === "fulfilled" && resExchange.value.result === "success") {
+        primaryRates = resExchange.value.conversion_rates;
+      }
 
-        let liveRates = { USD: 1 };
-        if (Object.keys(primaryRates).length > 0) {
-            for (const [currency, primaryRate] of Object.entries(primaryRates)) {
-                if (currency === "USD") continue;
+      if (resFrankfurter.status === "fulfilled" && resFrankfurter.value.rates) {
+        benchmarkRates = resFrankfurter.value.rates;
+        benchmarkRates.USD = 1;
+      }
 
-                let finalRate = primaryRate;
-                if (benchmarkRates[currency]) {
-                    const benchmarkRate = benchmarkRates[currency];
-                    const differencePct = Math.abs(primaryRate - benchmarkRate) / primaryRate * 100;
+      let finnhubRates = null;
+      if (resFinnhub.status === "fulfilled" && !resFinnhub.value.error && resFinnhub.value.quote) {
+        finnhubRates = resFinnhub.value.quote;
+      }
 
-                    if (differencePct <= 0.5) {
-                        finalRate = (primaryRate + benchmarkRate) / 2;
-                    } else {
-                        finalRate = benchmarkRate; // 差異過大採納 Frankfurter 基準
-                    }
-                } else if (finnhubRates && finnhubRates[currency]) {
-                    const secondaryRate = finnhubRates[currency];
-                    const differencePct = Math.abs(primaryRate - secondaryRate) / primaryRate * 100;
+      // 2. 交叉驗證與數據對齊
+      if (Object.keys(primaryRates).length > 0) {
+        for (const [currency, primaryRate] of Object.entries(primaryRates)) {
+          if (currency === "USD") continue;
 
-                    if (differencePct <= 0.5) {
-                        finalRate = (primaryRate + secondaryRate) / 2;
-                    }
-                }
-                liveRates[currency] = finalRate;
+          let finalRate = primaryRate;
+          if (benchmarkRates[currency]) {
+            const benchmarkRate = benchmarkRates[currency];
+            const differencePct = Math.abs(primaryRate - benchmarkRate) / primaryRate * 100;
+
+            if (differencePct <= 0.5) {
+              finalRate = (primaryRate + benchmarkRate) / 2;
+            } else {
+              finalRate = benchmarkRate;
             }
-        }
+          } else if (finnhubRates && finnhubRates[currency]) {
+            const secondaryRate = finnhubRates[currency];
+            const differencePct = Math.abs(primaryRate - secondaryRate) / primaryRate * 100;
 
-        // --- 新聞處理邏輯 ---
-        let news = [];
-        if (resNews.status === "fulfilled" && Array.isArray(resNews.value) && resNews.value.length > 0) {
-            // 擷取前 8 筆並回傳需要的格式，交給前端處理 fallback
-            news = resNews.value.slice(0, 8).map(item => {
-                return {
-                    datetime: item.datetime,
-                    title: item.headline || "全球財經要聞",
-                    image: item.image || "",
-                    summary: item.summary || "點擊查看完整新聞報導內容。",
-                    source: item.source || "Market News",
-                    url: item.url || "#"
-                };
-            });
+            if (differencePct <= 0.5) {
+              finalRate = (primaryRate + secondaryRate) / 2;
+            }
+          }
+          liveRates[currency] = finalRate;
         }
+      } else {
+        liveRates = { ...fallbackRates };
+      }
 
-        // 將乾淨、驗證過的資料傳回前端
-        res.status(200).json({
-            success: true,
-            liveRates,
-            news
+      // 新聞處理
+      let finalNews = [];
+      if (resFinnhub.status === "fulfilled" && Array.isArray(resFinnhub.value) && resFinnhub.value.length > 0) {
+        finalNews = resFinnhub.value.slice(0, 8).map(item => {
+          const date = new Date(item.datetime * 1000);
+          return {
+            time: date.toLocaleTimeString("zh-Hant-TW", { hour: "2-digit", minute: "2-digit" }),
+            title: item.headline || "全球財經要聞",
+            image: item.image || "",
+            summary: item.summary || "點擊查看完整新聞報導內容。",
+            source: item.source || "Market News",
+            url: item.url || "#"
+          };
         });
+      }
 
-    } catch (error) {
-        console.error("後端抓取錯誤：", error);
-        res.status(500).json({ success: false, error: "無法處理外部 API 資料" });
+      // 打包最終共識數據
+      const marketOutput = {
+        rates: liveRates,
+        news: finalNews,
+        updatedAt: new Date().toISOString()
+      };
+
+      // 3. 寫入快取，保存 15 分鐘
+      await kv.set('fx_market_data', marketOutput, { ex: 900 });
+
+      // 回傳成功 JSON
+      return res.status(200).json({ success: true, message: "數據更新並成功寫入快取！" });
+
+    } catch (err) {
+      console.error("內部運作錯誤:", err);
+      return res.status(500).json({ error: "Internal Server Error", details: err.message });
     }
-}
+  }
+
+  // 暗號不對拒絕連線
+  return res.status(401).json({ error: "Unauthorized: 無權限存取此 API" });
+};
