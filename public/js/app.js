@@ -11,10 +11,10 @@ const fallbackRates = {
 
 // 備援新聞
 const fallbackNews = [
-    { time: "今日", title: "美元走勢受利率預期牽動", image: "", summary: "市場持續關注主要央行利率政策，美元與主要貨幣對短線波動加大。", source: "市場快訊", url: "#" },
-    { time: "今日", title: "日圓匯價關注央行政策訊號", image: "", summary: "投資人留意日本央行政策方向與美債殖利率變化，日圓交投區間仍可能擴大。", source: "外匯觀察", url: "#" },
-    { time: "今日", title: "歐元區數據影響歐元短線表現", image: "", summary: "歐元區經濟數據與通膨趨勢仍是市場評估歐元走勢的重要依據。", source: "金融焦點", url: "#" },
-    { time: "今日", title: "台幣匯率隨國際美元變化調整", image: "", summary: "新台幣走勢受國際美元、資金流向與出口商拋匯需求共同影響。", source: "匯市整理", url: "#" }
+    { time: "今日", title: "美元走勢受利率預期牽動", image: "", summary: "市場持續關注主要央行利率政策，美元與主要貨幣對短線波動加大。", source: "市場快訊", url: "https://finance.yahoo.com/currencies" },
+    { time: "今日", title: "日圓匯價關注央行政策訊號", image: "", summary: "投資人留意日本央行政策方向與美債殖利率變化，日圓交投區間仍可能擴大。", source: "外匯觀察", url: "https://finance.yahoo.com/quote/JPY=X" },
+    { time: "今日", title: "歐元區數據影響歐元短線表現", image: "", summary: "歐元區經濟數據與通膨趨勢仍是市場評估歐元走勢的重要依據。", source: "金融焦點", url: "https://finance.yahoo.com/quote/EURUSD=X" },
+    { time: "今日", title: "台幣匯率隨國際美元變化調整", image: "", summary: "新台幣走勢受國際美元、資金流向與出口商拋匯需求共同影響。", source: "匯市整理", url: "https://finance.yahoo.com/quote/TWD=X" }
 ];
 
 const chartDataMock = {
