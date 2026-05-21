@@ -23,17 +23,24 @@ module.exports = async (req, res) => {
     try {
       console.log("暗號正確，開始執行後端數據更新與比對...");
 
+      // 🚀 新增：建立一個 4 秒超時的斷尾控制器
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000); // 4000 毫秒 = 4 秒
+
       // 備援匯率資料
       const fallbackRates = {
         USD: 1, TWD: 32.2, EUR: 0.92, JPY: 155, GBP: 0.79, AUD: 1.52, CAD: 1.37, CHF: 0.91
       };
 
-      // 1. 呼叫外部 API
+      // 1. 呼叫外部 API（通通加上 signal 控制器）
       const [resExchange, resFinnhub, resFrankfurter] = await Promise.allSettled([
-        fetch(`https://v6.exchangerate-api.com/v6/${process.env.EXCHANGE_KEY}/latest/USD`).then(r => r.json()),
-        fetch(`https://finnhub.io/api/v1/news?category=general&token=${process.env.FINNHUB_KEY}`).then(r => r.json()),
-        fetch("https://api.frankfurter.app/latest?from=USD").then(r => r.json())
+        fetch(`https://v6.exchangerate-api.com/v6/${process.env.EXCHANGE_KEY}/latest/USD`, { signal: controller.signal }).then(r => r.json()),
+        fetch(`https://finnhub.io/api/v1/news?category=general&token=${process.env.FINNHUB_KEY}`, { signal: controller.signal }).then(r => r.json()),
+        fetch("https://api.frankfurter.app/latest?from=USD", { signal: controller.signal }).then(r => r.json())
       ]);
+
+      // 🚀 新增：API 順利回應了就清除計時器
+      clearTimeout(timeoutId);
 
       let primaryRates = {};
       let benchmarkRates = {};
