@@ -7,11 +7,11 @@ module.exports = async (req, res) => {
   const cron = req.query ? req.query.cron : null;
   const authHeader = req.headers ? req.headers['authorization'] : null;
 
-  // 安全檢查：驗證暗號
-  if (
-    (cron === 'true' && secret === 'mySecret123') || 
-    (authHeader && authHeader === `Bearer ${process.env.CRON_SECRET}`)
-  ) {
+  // 安全檢查：驗證暗號 (判斷是否為後端排程觸發的更新請求)
+  const isAuthorized = (cron === 'true' && secret === 'mySecret123') || 
+                       (authHeader && authHeader === `Bearer ${process.env.CRON_SECRET}`);
+
+  if (isAuthorized) {
     try {
       console.log("暗號正確，開始執行後端數據更新與比對...");
 
@@ -100,15 +100,30 @@ module.exports = async (req, res) => {
       // 3. 寫入快取，保存 15 分鐘
       await kv.set('fx_market_data', marketOutput, { ex: 900 });
 
-      // 回傳成功 JSON
+      // 回傳成功 JSON (只給觸發排程的機器看)
       return res.status(200).json({ success: true, message: "數據更新並成功寫入快取！" });
 
     } catch (err) {
       console.error("內部運作錯誤:", err);
       return res.status(500).json({ error: "Internal Server Error", details: err.message });
     }
+  } else {
+    // 沒有暗號，代表是一般使用者的瀏覽器前端請求 (app.js 發出的)
+    try {
+      const marketData = await kv.get('fx_market_data');
+      if (marketData) {
+        // 從快取讀出資料，格式要對應前端 app.js 的預期
+        return res.status(200).json({ 
+            success: true, 
+            liveRates: marketData.rates, 
+            news: marketData.news 
+        });
+      } else {
+        return res.status(404).json({ success: false, error: "快取中尚未有數據，請稍後再試。" });
+      }
+    } catch (err) {
+      console.error("讀取快取錯誤:", err);
+      return res.status(500).json({ success: false, error: "無法連線至資料庫" });
+    }
   }
-
-  // 暗號不對拒絕連線
-  return res.status(401).json({ error: "Unauthorized: 無權限存取此 API" });
 };
