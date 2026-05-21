@@ -1,8 +1,3 @@
 {
-  "crons": [
-    {
-      "path": "/api/fetch-data",
-      "schedule": "*/10 * * * *"
-    }
-  ]
+  "rewrites": [{ "source": "/api/(.*)", "destination": "/api/$1" }]
 }
