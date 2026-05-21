@@ -53,6 +53,20 @@ async function fetchBackendData() {
 
         if (data.success) {
             isDataFallback = data.isFallback || false;
+            let isNewsFallback = false;
+
+            // 處理新聞並自動補齊 8 則
+            if (Array.isArray(data.news) && data.news.length > 0) {
+                if (data.news.length < 8) {
+                    const paddingCount = 8 - data.news.length;
+                    mockNews = [...data.news, ...fallbackNews.slice(0, paddingCount)];
+                } else {
+                    mockNews = data.news.slice(0, 8);
+                }
+            } else {
+                isNewsFallback = true;
+            }
+
             // 更新即時資料標籤
             const badge = document.getElementById("data-status-badge");
             if (badge) {
@@ -60,6 +74,10 @@ async function fetchBackendData() {
                     badge.innerText = "示範資料";
                     badge.style.backgroundColor = "rgba(255, 152, 0, 0.2)";
                     badge.style.color = "#FF9800";
+                } else if (isNewsFallback) {
+                    badge.innerText = "即時匯率 (無新聞)";
+                    badge.style.backgroundColor = "rgba(255, 193, 7, 0.2)";
+                    badge.style.color = "#FFC107";
                 } else {
                     badge.innerText = "即時資料";
                     badge.style.backgroundColor = "rgba(0, 230, 118, 0.2)";
@@ -70,16 +88,6 @@ async function fetchBackendData() {
             // 處理匯率
             if (data.liveRates && Object.keys(data.liveRates).length > 0) {
                 liveRates = data.liveRates;
-            }
-
-            // 處理新聞並自動補齊 8 則
-            if (Array.isArray(data.news) && data.news.length > 0) {
-                if (data.news.length < 8) {
-                    const paddingCount = 8 - data.news.length;
-                    mockNews = [...data.news, ...fallbackNews.slice(0, paddingCount)];
-                } else {
-                    mockNews = data.news.slice(0, 8);
-                }
             }
         } else {
             isDataFallback = true;
