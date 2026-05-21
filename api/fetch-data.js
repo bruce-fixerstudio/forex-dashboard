@@ -1,11 +1,19 @@
 // 🚀 修正：改用 require 語法，防止 Vercel 執行環境因為 import 語法崩潰
-const { kv } = require('@vercel/kv');
+const { createClient } = require('redis');
 
 module.exports = async (req, res) => {
   // 🚀 修正：在 Node.js 中，query 參數與 headers 的標準安全抓取方式
   const secret = req.query ? req.query.secret : null;
   const cron = req.query ? req.query.cron : null;
   const authHeader = req.headers ? req.headers['authorization'] : null;
+
+  // 建立 Redis 連線
+  const redis = createClient({
+    url: process.env.REDIS_URL
+  });
+
+  redis.on('error', err => console.error('Redis Client Error', err));
+  await redis.connect();
 
   // 安全檢查：驗證暗號 (判斷是否為後端排程觸發的更新請求)
   const isAuthorized = (cron === 'true' && secret === 'mySecret123') || 
@@ -97,21 +105,26 @@ module.exports = async (req, res) => {
         updatedAt: new Date().toISOString()
       };
 
-      // 3. 寫入快取，保存 15 分鐘
-      await kv.set('fx_market_data', marketOutput, { ex: 900 });
+      // 3. 寫入快取，保存 15 分鐘 (900秒)
+      await redis.set('fx_market_data', JSON.stringify(marketOutput), { EX: 900 });
+      await redis.disconnect();
 
       // 回傳成功 JSON (只給觸發排程的機器看)
       return res.status(200).json({ success: true, message: "數據更新並成功寫入快取！" });
 
     } catch (err) {
       console.error("內部運作錯誤:", err);
+      if (redis.isOpen) await redis.disconnect();
       return res.status(500).json({ error: "Internal Server Error", details: err.message });
     }
   } else {
     // 沒有暗號，代表是一般使用者的瀏覽器前端請求 (app.js 發出的)
     try {
-      const marketData = await kv.get('fx_market_data');
-      if (marketData) {
+      const dataStr = await redis.get('fx_market_data');
+      await redis.disconnect();
+
+      if (dataStr) {
+        const marketData = JSON.parse(dataStr);
         // 從快取讀出資料，格式要對應前端 app.js 的預期
         return res.status(200).json({ 
             success: true, 
@@ -123,6 +136,7 @@ module.exports = async (req, res) => {
       }
     } catch (err) {
       console.error("讀取快取錯誤:", err);
+      if (redis.isOpen) await redis.disconnect();
       return res.status(500).json({ success: false, error: "無法連線至資料庫" });
     }
   }
